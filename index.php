@@ -99,20 +99,86 @@ if (isset($_SESSION['cart'])) {
 <div class="categories" id="categorias" style="margin-top: 80px;">
     <h2 style="text-align:center; color: var(--color2); font-size: 1.1rem; margin-bottom: 0.7rem;">Categorías</h2>
     <div class="category-list">
-        <?php foreach ($categorias as $category): ?>
-            <div class="categoria-bloque">
-                <span><?= htmlspecialchars($category['name']) ?></span>
-            </div>
-        <?php endforeach; ?>
+        <div class="categoria-bloque categoria-activa" onclick="filtrarPorTexto('todos')">
+            <span>Todos</span>
+        </div>
+        <div class="categoria-bloque" onclick="filtrarPorTexto('anillos')">
+            <span>Anillos</span>
+        </div>
+        <div class="categoria-bloque" onclick="filtrarPorTexto('pulseras')">
+            <span>Pulseras</span>
+        </div>
+        <div class="categoria-bloque" onclick="filtrarPorTexto('aretes')">
+            <span>Aretes</span>
+        </div>
+        <div class="categoria-bloque" onclick="filtrarPorTexto('collar')">
+            <span>Collares</span>
+        </div>
     </div>
 </div>
+
+<script>
+// Función para filtrar productos por texto en el nombre o descripción
+function filtrarPorTexto(categoria, elemento) {
+    // Actualizar categorías activas
+    const categorias = document.querySelectorAll('.categoria-bloque');
+    categorias.forEach(cat => {
+        cat.classList.remove('categoria-activa');
+    });
+    
+    // Activar la categoría seleccionada
+    if (elemento) {
+        elemento.classList.add('categoria-activa');
+    } else {
+        event.currentTarget.classList.add('categoria-activa');
+    }
+    
+    // Actualizar título
+    const titulos = document.querySelectorAll('.products h2');
+    if (titulos.length > 0) {
+        // Actualizar solo el segundo título (Todos los productos)
+        if (titulos.length > 1) {
+            titulos[1].textContent = categoria === 'todos' ? 'Todos los Productos' : 
+                document.querySelector('.categoria-activa span').textContent + ' - Productos';
+        }
+    }
+    
+    // Filtrar productos
+    const productos = document.querySelectorAll('.producto');
+    let categoriaBusqueda = categoria.toLowerCase();
+    
+    productos.forEach(producto => {
+        // Buscar en el nombre y descripción del producto
+        const nombreProducto = producto.querySelector('h3').innerText.toLowerCase();
+        const descripcionProducto = producto.getAttribute('data-description') || '';
+        
+        if (categoria === 'todos') {
+            producto.style.display = '';
+        } else if (
+            nombreProducto.includes(categoriaBusqueda) || 
+            descripcionProducto.toLowerCase().includes(categoriaBusqueda)
+        ) {
+            producto.style.display = '';
+        } else {
+            producto.style.display = 'none';
+        }
+    });
+}
+
+// Inicializar cuando la página carga
+document.addEventListener('DOMContentLoaded', function() {
+    const todosBtn = document.querySelector('.categoria-bloque.categoria-activa');
+    filtrarPorTexto('todos', todosBtn);
+});
+</script>
 
 <!-- Productos más baratos -->
 <div class="products" id="productos">
     <h2 style="text-align:center; color: var(--color2); font-size: 1.1rem; margin-bottom: 0.7rem;">Productos Más Baratos</h2>
     <div class="productos-grid">
         <?php foreach ($productos_baratos as $product): ?>
-            <div class="producto">
+            <div class="producto categoria-<?= strtolower(preg_replace('/\s+/', '-', $product['name'])) ?>" 
+                 data-description="<?= htmlspecialchars($product['description'] ?? '') ?>">
                 <a href="add_to_cart_db.php?product_id=<?= $product['product_id'] ?>" class="btn-mas" title="Añadir al carrito">+</a>
                 <a href="product.php?id=<?= $product['product_id'] ?>">
                     <img src="<?= htmlspecialchars($product['image_url']) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
@@ -129,7 +195,8 @@ if (isset($_SESSION['cart'])) {
     <h2 style="text-align:center; color: var(--color2); font-size: 1.1rem; margin-bottom: 0.7rem;">Todos los Productos</h2>
     <div class="productos-grid">
         <?php foreach ($productos as $product): ?>
-            <div class="producto">
+            <div class="producto categoria-<?= strtolower(preg_replace('/\s+/', '-', $product['name'])) ?>"
+                 data-description="<?= htmlspecialchars($product['description'] ?? '') ?>">
                 <a href="add_to_cart_db.php?product_id=<?= $product['product_id'] ?>" class="btn-mas" title="Añadir al carrito">+</a>
                 <a href="product.php?id=<?= $product['product_id'] ?>">
                     <img src="<?= htmlspecialchars($product['image_url']) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
