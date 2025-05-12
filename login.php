@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="email" name="email" required class="input" style="width:100%;padding:8px;margin-bottom:1rem;">
             <label for="password">Contraseña</label>
             <input type="password" name="password" required class="input" style="width:100%;padding:8px;margin-bottom:1rem;">
-            <button type="submit" class="btn-carrito" style="width:100%;">Iniciar Sesión</button>
+            <button type="submit" class="btn-cta" style="width:100%;">Iniciar Sesión</button>
         </form>
         <p style="margin-top:1rem;">¿No tienes cuenta? <a href="register.php">Crea una aquí</a></p>
     </div>
