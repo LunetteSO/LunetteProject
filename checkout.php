@@ -3,9 +3,9 @@ session_start();
 require 'config/db.php';
 
 // Habilitar el registro de errores
-ini_set('display_errors', 0); // Desactiva la visualización de errores por defecto
-ini_set('log_errors', 1); // Habilita el log de errores
-ini_set('error_log', 'errors.log'); // Define el archivo de log para los errores
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', 'errors.log');
 
 // Verificar si el usuario está logueado
 if (!isset($_SESSION['user_id'])) {
@@ -32,6 +32,8 @@ if (!isset($_GET['step'])) {
 $stmt = $conn->prepare("SELECT sc.shopping_card_id, sc.total_amount FROM shopping_card sc WHERE sc.user_id = ?");
 $stmt->execute([$user_id]);
 $shopping_card = $stmt->fetch(PDO::FETCH_ASSOC);
+error_log("Consulta carrito: " . $stmt->queryString); // Log de la consulta
+error_log("Resultado carrito: " . json_encode($shopping_card)); // Log de los resultados
 
 if (!$shopping_card) {
     $_SESSION['cart_message'] = ['type' => 'error', 'text' => 'No tienes un carrito de compras activo'];
@@ -45,6 +47,8 @@ $shopping_card_id = $shopping_card['shopping_card_id'];
 $stmt = $conn->prepare("SELECT sci.*, p.name, p.price, p.description, (SELECT pi.image_url FROM product_image pi WHERE pi.product_id = p.product_id LIMIT 1) AS image_url FROM shopping_card_item sci JOIN product p ON sci.product_id = p.product_id WHERE sci.shopping_card_id = ? AND sci.is_select = 1");
 $stmt->execute([$shopping_card_id]);
 $cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+error_log("Consulta items carrito: " . $stmt->queryString); // Log de la consulta
+error_log("Resultado items carrito: " . json_encode($cart_items)); // Log de los resultados
 
 // Calcular totales
 foreach ($cart_items as $item) {
@@ -56,15 +60,21 @@ $total = $subtotal_seleccionados + $shipping_cost;
 // Obtener tipos de tarjeta
 $stmt = $conn->query("SELECT * FROM type_card");
 $type_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+error_log("Consulta tipos de tarjeta: " . $stmt->queryString); // Log de la consulta
+error_log("Resultado tipos de tarjeta: " . json_encode($type_cards)); // Log de los resultados
 
 // Obtener direcciones y tarjetas del usuario
 $stmt = $conn->prepare("SELECT * FROM address WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $user_addresses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+error_log("Consulta direcciones: " . $stmt->queryString); // Log de la consulta
+error_log("Resultado direcciones: " . json_encode($user_addresses)); // Log de los resultados
 
-$stmt = $conn->prepare("SELECT c.*, tc.name as type_card_name FROM card c JOIN type_card tc ON c.type_card_id = tc.type_card_id WHERE c.user_id = ? AND c.orders_id IS NULL");
+$stmt = $conn->prepare("SELECT c.*, tc.name as type_card_name FROM card c JOIN type_card tc ON c.type_card_id = tc.type_card_id WHERE c.user_id = ?");
 $stmt->execute([$user_id]);
 $user_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+error_log("Consulta tarjetas: " . $stmt->queryString); // Log de la consulta
+error_log("Resultado tarjetas: " . json_encode($user_cards)); // Log de los resultados
 
 // Paso 1: Procesar la dirección y tarjeta
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['step'] == 1) {
@@ -84,32 +94,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             throw new Exception("Faltan datos obligatorios en la tarjeta");
         }
 
-        // Guardar los datos en la sesión
+        // Inserción de la nueva dirección
+        $is_default = (count($user_addresses) == 0) ? 1 : 0; // Si es la única dirección, marcarla como predeterminada
+        $stmt = $conn->prepare("INSERT INTO address (street_address, city, postal_code, country, specification, is_default, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $_POST['street_address'],
+            $_POST['city'],
+            $_POST['postal_code'],
+            $_POST['country'],
+            $_POST['specification'] ?? '', // Especificación adicional
+            $is_default,
+            $user_id
+        ]);
+        $address_id = $conn->lastInsertId(); // Obtener el ID de la nueva dirección
+        error_log("Inserción dirección: " . json_encode($_POST)); // Log de lo que se envió
+        error_log("ID dirección insertada: " . $address_id); // Log del ID insertado
+
+        // Inserción de la nueva tarjeta
+        $stmt = $conn->prepare("INSERT INTO card (number, cvv, cardholders_name, expiration_date, user_id, type_card_id) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $_POST['card_number'],
+            $_POST['cvv'],
+            $_POST['cardholders_name'],
+            $expiration_date,
+            $user_id,
+            $_POST['type_card_id'] // Tipo de tarjeta seleccionado
+        ]);
+        $card_id = $conn->lastInsertId(); // Obtener el ID de la nueva tarjeta
+        error_log("Inserción tarjeta: " . json_encode($_POST)); // Log de lo que se envió
+        error_log("ID tarjeta insertada: " . $card_id); // Log del ID insertado
+
+        // Crear la orden
+        $stmt = $conn->prepare("INSERT INTO orders (date, total_amount, user_id, address_id, card_id) VALUES (NOW(), ?, ?, ?, ?)");
+        $stmt->execute([$total, $user_id, $address_id, $card_id]);
+        $order_id = $conn->lastInsertId(); // Obtener el ID de la nueva orden
+        error_log("Inserción orden: " . json_encode($_SESSION['checkout_data'])); // Log de los datos de la orden
+        error_log("ID orden insertada: " . $order_id); // Log del ID insertado
+
+        // Guardar los datos de checkout en la sesión
         $_SESSION['checkout_data'] = [
-            'address_id' => isset($_POST['address_id']) ? $_POST['address_id'] : null,
-            'new_address' => isset($_POST['new_address']) ? $_POST['new_address'] == 'true' : false,
-            'street_address' => $_POST['street_address'],
-            'city' => $_POST['city'],
-            'postal_code' => $_POST['postal_code'],
-            'country' => $_POST['country'],
-            'specification' => isset($_POST['specification']) ? $_POST['specification'] : '',
-            'save_address' => isset($_POST['save_address']) ? $_POST['save_address'] == 'true' : false,
-            'card_id' => isset($_POST['card_id']) ? $_POST['card_id'] : null,
-            'new_card' => isset($_POST['new_card']) ? $_POST['new_card'] == 'true' : false,
-            'card_number' => $_POST['card_number'],
-            'cvv' => $_POST['cvv'],
-            'cardholders_name' => $_POST['cardholders_name'],
-            'expiration_date' => $expiration_date,
-            'expiration_month' => $_POST['expiration_month'],
-            'expiration_year' => $_POST['expiration_year'],
-            'type_card_id' => isset($_POST['type_card_id']) ? $_POST['type_card_id'] : null,
-            'save_card' => isset($_POST['save_card']) ? $_POST['save_card'] == 'true' : false
+            'address_id' => $address_id,
+            'card_id' => $card_id,
+            'order_id' => $order_id
         ];
 
-        // Log de los datos de la sesión para depuración
-        logToConsole("Datos de checkout en la sesión: " . json_encode($_SESSION['checkout_data']));
-
-        // Redirigir al paso 2
+        // Redirigir al paso 2 (confirmación)
         header('Location: checkout.php?step=2');
         exit;
 
@@ -121,110 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
         exit;
     }
 }
-
-// Paso 2: Confirmación de la orden
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['step'] == 2) {
-    try {
-        $conn->beginTransaction();
-
-        // Recuperar los datos de la sesión
-        $checkout_data = $_SESSION['checkout_data'];
-        logToConsole("Datos de checkout recuperados: " . json_encode($checkout_data));
-
-        // Crear la dirección si es nueva
-        $address_id = $checkout_data['address_id'];
-        if ($checkout_data['new_address']) {
-            $stmt = $conn->prepare("INSERT INTO address (street_address, city, postal_code, country, specification, is_default, user_id) VALUES (?, ?, ?, ?, ?, 0, ?)");
-            $stmt->execute([
-                $checkout_data['street_address'],
-                $checkout_data['city'],
-                $checkout_data['postal_code'],
-                $checkout_data['country'],
-                $checkout_data['specification'],
-                $user_id
-            ]);
-            $address_id = $conn->lastInsertId(); // Obtener ID de la nueva dirección
-            logToConsole("Nueva dirección creada ID: " . $address_id);
-        }
-
-        // Crear la orden
-        $stmt = $conn->prepare("INSERT INTO orders (date, total_amount, user_id, address_id) VALUES (NOW(), ?, ?, ?)");
-        $stmt->execute([$total, $user_id, $address_id]);
-        $order_id = $conn->lastInsertId();
-        logToConsole("Nueva orden creada ID: " . $order_id);
-
-        // Crear la tarjeta
-        if ($checkout_data['new_card']) {
-            $stmt = $conn->prepare("INSERT INTO card (number, cvv, cardholders_name, expiration_date, user_id, type_card_id, orders_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $checkout_data['card_number'],
-                $checkout_data['cvv'],
-                $checkout_data['cardholders_name'],
-                $checkout_data['expiration_date'],
-                $user_id,
-                $checkout_data['type_card_id'],
-                $order_id
-            ]);
-            logToConsole("Nueva tarjeta creada para la orden");
-        } else {
-            $card_id = $checkout_data['card_id'];
-            $stmt = $conn->prepare("INSERT INTO card (number, cvv, cardholders_name, expiration_date, user_id, type_card_id, orders_id) SELECT number, cvv, cardholders_name, expiration_date, user_id, type_card_id, ? FROM card WHERE card_id = ?");
-            $stmt->execute([$order_id, $card_id]);
-            logToConsole("Tarjeta copiada para la orden");
-        }
-
-        // Crear los detalles de la orden (productos seleccionados)
-        foreach ($cart_items as $item) {
-            $stmt = $conn->prepare("INSERT INTO order_detail (quantity, unit_price, orders_id, product_id) VALUES (?, ?, ?, ?)");
-            $stmt->execute([
-                $item['quantity'],
-                $item['price'],
-                $order_id,
-                $item['product_id']
-            ]);
-            logToConsole("Detalle de orden creado para producto ID: " . $item['product_id']);
-        }
-
-        // Eliminar productos del carrito después de la compra
-        $stmt = $conn->prepare("DELETE FROM shopping_card_item WHERE shopping_card_id = ? AND is_select = 1");
-        $stmt->execute([$shopping_card_id]);
-        logToConsole("Productos seleccionados eliminados del carrito");
-
-        // Actualizar total del carrito
-        $stmt = $conn->prepare("SELECT COALESCE(SUM(p.price * sci.quantity), 0) as total FROM shopping_card_item sci JOIN product p ON sci.product_id = p.product_id WHERE sci.shopping_card_id = ?");
-        $stmt->execute([$shopping_card_id]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $cart_total = $result['total'] ?? 0;
-
-        $stmt = $conn->prepare("UPDATE shopping_card SET total_amount = ? WHERE shopping_card_id = ?");
-        $stmt->execute([$cart_total, $shopping_card_id]);
-        logToConsole("Total del carrito actualizado: " . $cart_total);
-
-        // Confirmar la transacción
-        $conn->commit();
-        logToConsole("Transacción completada con éxito");
-
-        $_SESSION['order_id'] = $order_id;
-
-        // Redirigir al paso 3 (confirmación)
-        header('Location: checkout.php?step=3');
-        exit;
-
-    } catch (Exception $e) {
-        if ($conn->inTransaction()) {
-            $conn->rollBack();
-        }
-        logToConsole("Error en el checkout: " . $e->getMessage());
-        error_log("Error en el checkout: " . $e->getMessage());
-        echo "<script>console.log('Error en el checkout: " . $e->getMessage() . "');</script>";
-
-        $_SESSION['cart_message'] = ['type' => 'error', 'text' => 'Error al procesar el pago'];
-        header('Location: cart.php');
-        exit;
-    }
-}
-
 ?>
+
 
 
 <!DOCTYPE html>
@@ -722,7 +649,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             </div>
         </div>
     </div>
-    
+
     <div class="checkout-summary">
         <h3>Resumen de Compra</h3>
         <div class="summary-item">
@@ -828,7 +755,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 </div>
                 
                 <div class="form-section">
-                    <h3>Productos</h3>
+        <h3>Productos</h3>
                     <div class="product-list">
                         <?php foreach ($cart_items as $item): ?>
                             <div class="product-item">
@@ -841,8 +768,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                                 <div class="product-total">
                                     S/ <?= number_format($item['price'] * $item['quantity'], 2) ?>
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
                     </div>
                 </div>
                 
@@ -856,18 +783,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                         <span>S/ <?= number_format($shipping_cost, 2) ?></span>
                     </div>
                     <div class="summary-total">
-                        <span>Total:</span>
-                        <span>S/ <?= number_format($total, 2) ?></span>
+            <span>Total:</span>
+            <span>S/ <?= number_format($total, 2) ?></span>
                     </div>
-                </div>
-                
+        </div>
+
                 <form action="checkout.php" method="POST">
                     <input type="hidden" name="step" value="2">
                     <div class="button-group">
                         <a href="checkout.php?step=1" class="btn btn-back">Volver</a>
                         <button type="submit" class="btn btn-confirm">Confirmar Compra</button>
                     </div>
-                </form>
+        </form>
             </div>
         <?php elseif ($current_step == 3): ?>
             <!-- Paso 3: Confirmación -->

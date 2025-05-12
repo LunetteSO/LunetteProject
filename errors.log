@@ -1,0 +1,25 @@
+[12-May-2025 03:32:58 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'c.orders_id' in 'where clause' in C:\xampp\htdocs\LunetteProject\checkout.php:66
+Stack trace:
+#0 C:\xampp\htdocs\LunetteProject\checkout.php(66): PDOStatement->execute(Array)
+#1 {main}
+  thrown in C:\xampp\htdocs\LunetteProject\checkout.php on line 66
+[12-May-2025 03:47:01 Europe/Berlin] Consulta carrito: SELECT sc.shopping_card_id, sc.total_amount FROM shopping_card sc WHERE sc.user_id = ?
+[12-May-2025 03:47:01 Europe/Berlin] Resultado carrito: {"shopping_card_id":"11","total_amount":"1563.19"}
+[12-May-2025 03:47:01 Europe/Berlin] Consulta items carrito: SELECT sci.*, p.name, p.price, p.description, (SELECT pi.image_url FROM product_image pi WHERE pi.product_id = p.product_id LIMIT 1) AS image_url FROM shopping_card_item sci JOIN product p ON sci.product_id = p.product_id WHERE sci.shopping_card_id = ? AND sci.is_select = 1
+[12-May-2025 03:47:01 Europe/Berlin] Resultado items carrito: [{"shopping_card_item_id":"19","quantity":"2","is_select":"1","shopping_card_id":"11","product_id":"3","name":"Luna","price":"226.94","description":"Joya italiana de oro","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"},{"shopping_card_item_id":"20","quantity":"1","is_select":"1","shopping_card_id":"11","product_id":"7","name":"Lucia","price":"248.9","description":"Joya italiana de acero inoxidable","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"},{"shopping_card_item_id":"23","quantity":"1","is_select":"1","shopping_card_id":"11","product_id":"2","name":"Aurora","price":"243.58","description":"Joya italiana de perlas","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"}]
+[12-May-2025 03:47:01 Europe/Berlin] Consulta tipos de tarjeta: SELECT * FROM type_card
+[12-May-2025 03:47:01 Europe/Berlin] Resultado tipos de tarjeta: [{"type_card_id":"1","name":"Visa","description":"Tarjeta Visa"},{"type_card_id":"2","name":"MasterCard","description":"Tarjeta MasterCard"}]
+[12-May-2025 03:47:01 Europe/Berlin] Consulta direcciones: SELECT * FROM address WHERE user_id = ?
+[12-May-2025 03:47:01 Europe/Berlin] Resultado direcciones: []
+[12-May-2025 03:47:01 Europe/Berlin] Consulta tarjetas: SELECT c.*, tc.name as type_card_name FROM card c JOIN type_card tc ON c.type_card_id = tc.type_card_id WHERE c.user_id = ?
+[12-May-2025 03:47:01 Europe/Berlin] Resultado tarjetas: []
+[12-May-2025 03:47:44 Europe/Berlin] Consulta carrito: SELECT sc.shopping_card_id, sc.total_amount FROM shopping_card sc WHERE sc.user_id = ?
+[12-May-2025 03:47:44 Europe/Berlin] Resultado carrito: {"shopping_card_id":"11","total_amount":"1563.19"}
+[12-May-2025 03:47:44 Europe/Berlin] Consulta items carrito: SELECT sci.*, p.name, p.price, p.description, (SELECT pi.image_url FROM product_image pi WHERE pi.product_id = p.product_id LIMIT 1) AS image_url FROM shopping_card_item sci JOIN product p ON sci.product_id = p.product_id WHERE sci.shopping_card_id = ? AND sci.is_select = 1
+[12-May-2025 03:47:44 Europe/Berlin] Resultado items carrito: [{"shopping_card_item_id":"19","quantity":"2","is_select":"1","shopping_card_id":"11","product_id":"3","name":"Luna","price":"226.94","description":"Joya italiana de oro","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"},{"shopping_card_item_id":"20","quantity":"1","is_select":"1","shopping_card_id":"11","product_id":"7","name":"Lucia","price":"248.9","description":"Joya italiana de acero inoxidable","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"},{"shopping_card_item_id":"23","quantity":"1","is_select":"1","shopping_card_id":"11","product_id":"2","name":"Aurora","price":"243.58","description":"Joya italiana de perlas","image_url":"https:\/\/mellany.pe\/wp-content\/uploads\/2025\/01\/pulseras-mellany-joyas-y-accesorios.jpg"}]
+[12-May-2025 03:47:44 Europe/Berlin] Consulta tipos de tarjeta: SELECT * FROM type_card
+[12-May-2025 03:47:44 Europe/Berlin] Resultado tipos de tarjeta: [{"type_card_id":"1","name":"Visa","description":"Tarjeta Visa"},{"type_card_id":"2","name":"MasterCard","description":"Tarjeta MasterCard"}]
+[12-May-2025 03:47:44 Europe/Berlin] Consulta direcciones: SELECT * FROM address WHERE user_id = ?
+[12-May-2025 03:47:44 Europe/Berlin] Resultado direcciones: []
+[12-May-2025 03:47:44 Europe/Berlin] Consulta tarjetas: SELECT c.*, tc.name as type_card_name FROM card c JOIN type_card tc ON c.type_card_id = tc.type_card_id WHERE c.user_id = ?
+[12-May-2025 03:47:44 Europe/Berlin] Resultado tarjetas: []

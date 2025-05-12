@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="text" name="telefono" required class="input" style="width:100%;padding:8px;margin-bottom:1rem;">
             <label for="password">Contraseña</label>
             <input type="password" name="password" required class="input" style="width:100%;padding:8px;margin-bottom:1rem;">
-            <button type="submit" class="btn-carrito" style="width:100%;">Crear Cuenta</button>
+            <button type="submit" class="btn-cta" style="width:100%;">Crear Cuenta</button>
         </form>
         <p style="margin-top:1rem;">¿Ya tienes cuenta? <a href="login.php">Inicia sesión aquí</a></p>
     </div>

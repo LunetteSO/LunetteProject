@@ -70,7 +70,7 @@ if (isset($_GET['id'])) {
                         <input type="number" name="quantity" id="quantity" value="1" min="1" class="quantity-input" onchange="updateQuantity()">
                         <button type="button" class="quantity-btn" onclick="incrementQuantity()">+</button>
                     </div>
-                    <button type="submit" class="btn-carrito">Añadir al Carrito</button>
+                    <button type="submit" class="btn-cta">Añadir al Carrito</button>
                 </form>
             </div>
         <?php else: ?>
