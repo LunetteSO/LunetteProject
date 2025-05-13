@@ -80,7 +80,7 @@ if (isset($_GET['id'])) {
 </section>
 
 <script>
-    // Funciones para incrementar y decrementar la cantidad del producto
+    // Funciones para cambiar la cantidad del producto
     function incrementQuantity() {
         var quantityInput = document.getElementById("quantity");
         quantityInput.value = parseInt(quantityInput.value) + 1;
