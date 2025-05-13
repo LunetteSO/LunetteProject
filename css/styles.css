@@ -751,36 +751,36 @@ p  { font-size: 18px; font-weight: normal; }
 .btn-cta {
 
     
-    background: var(--color2); /* Fondo del botón, color suave */
-    color: #fff; /* Texto en blanco */
-    font-size: 1.2rem; /* Tamaño del texto */
-    font-weight: 600; /* Peso de la fuente */
-    padding: 0.9rem 2rem; /* Relleno alrededor del texto */
-    border-radius: 1rem; /* Bordes redondeados */
-    width: 100%; /* Que ocupe el 100% del ancho del formulario */
-    border: none; /* Sin borde */
-    cursor: pointer; /* Apunta con el cursor para indicar clic */
-    transition: all 0.3s ease; /* Transición suave al pasar el mouse */
-    box-shadow: 0 4px 12px rgba(189, 101, 113, 0.15); /* Sombra suave */
+    background: var(--color2); 
+    color: #fff;
+    font-size: 1.2rem; 
+    font-weight: 600;
+    padding: 0.9rem 2rem; 
+    border-radius: 1rem; 
+    width: 100%; 
+    border: none; 
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    box-shadow: 0 4px 12px rgba(189, 101, 113, 0.15); 
 }
 
 /* Efecto de hover */
 .btn-cta:hover {
-    background: var(--color5); /* Fondo al pasar el mouse, color más oscuro */
-    transform: translateY(-3px); /* Desplazamiento ligero hacia arriba */
-    box-shadow: 0 6px 18px rgba(189, 101, 113, 0.25); /* Sombra más pronunciada */
+    background: var(--color5); 
+    transform: translateY(-3px); 
+    box-shadow: 0 6px 18px rgba(189, 101, 113, 0.25); 
 }
 
 /* Efecto de focus */
 .btn-cta:focus {
-    outline: none; /* Elimina el borde por defecto del foco */
-    box-shadow: 0 0 10px rgba(132, 57, 63, 0.6); /* Añade una sombra vibrante cuando el botón tiene el foco */
+    outline: none; 
+    box-shadow: 0 0 10px rgba(132, 57, 63, 0.6); 
 }
 
 /* Estilo de texto dentro del botón */
 .btn-cta:active {
-    transform: translateY(2px); /* Efecto al presionar el botón, lo empuja hacia abajo */
-    box-shadow: 0 2px 8px rgba(189, 101, 113, 0.2); /* Sombra ligera al presionar */
+    transform: translateY(2px); 
+    box-shadow: 0 2px 8px rgba(189, 101, 113, 0.2); 
 }
 
 
