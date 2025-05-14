@@ -2,17 +2,14 @@
 session_start();
 require 'config/db.php';
 
-// Habilitar el registro de errores
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Función para registrar errores en consola
 function logToConsole($message) {
     echo "<script>console.log('PHP Debug: " . str_replace("'", "\'", $message) . "');</script>";
 }
 
-// Verificar si el usuario está logueado
 $usuario_logueado = isset($_SESSION['user_id']);
 $cart_empty = true;
 $cart_items = [];
@@ -20,9 +17,7 @@ $total = 0;
 $subtotal_seleccionados = 0;
 $shopping_card_id = 0;
 
-// Verificar si hay un mensaje en la sesión
 $cart_message = isset($_SESSION['cart_message']) ? $_SESSION['cart_message'] : null;
-// Limpiar el mensaje de la sesión para que no se muestre de nuevo en la próxima recarga
 if (isset($_SESSION['cart_message'])) {
     unset($_SESSION['cart_message']);
 }
@@ -30,8 +25,7 @@ if (isset($_SESSION['cart_message'])) {
 if ($usuario_logueado) {
     try {
         $user_id = $_SESSION['user_id'];
-        
-        // Obtener el carrito del usuario
+    
         $stmt = $conn->prepare("
             SELECT sc.shopping_card_id, sc.total_amount
             FROM shopping_card sc
@@ -43,8 +37,7 @@ if ($usuario_logueado) {
         if ($shopping_card) {
             $shopping_card_id = $shopping_card['shopping_card_id'];
             logToConsole("Carrito encontrado: " . json_encode($shopping_card));
-            
-            // Obtener los items del carrito
+
             $stmt = $conn->prepare("
                 SELECT sci.*, p.name, p.price, p.description,
                 (SELECT pi.image_url FROM product_image pi WHERE pi.product_id = p.product_id LIMIT 1) AS image_url
@@ -61,7 +54,6 @@ if ($usuario_logueado) {
                 $cart_empty = false;
                 $total = $shopping_card['total_amount'];
                 
-                // Calcular subtotal de productos seleccionados
                 foreach ($cart_items as $item) {
                     if ($item['is_select'] == 1) {
                         $subtotal_seleccionados += $item['price'] * $item['quantity'];
@@ -88,14 +80,12 @@ if ($usuario_logueado) {
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* Estilos para el layout del carrito */
         .cart-container {
             display: grid;
             grid-template-columns: 1fr 350px;
             gap: 2rem;
         }
-        
-        /* Estilos para el selector circular */
+ 
         .item-select {
             width: 20px;
             height: 20px;
@@ -124,7 +114,6 @@ if ($usuario_logueado) {
             opacity: 1;
         }
         
-        /* Estilos para el mensaje del carrito */
         .cart-message {
             padding: 15px;
             margin-bottom: 20px;
@@ -146,7 +135,6 @@ if ($usuario_logueado) {
             border: 1px solid #f44336;
         }
         
-        /* Estilos para el resumen lateral */
         .cart-summary {
             background: #fff;
             color: var(--color5);
@@ -172,7 +160,6 @@ if ($usuario_logueado) {
             font-size: 1.2rem;
         }
         
-        /* Media queries para responsive */
         @media (max-width: 900px) {
             .cart-container {
                 grid-template-columns: 1fr;
@@ -193,7 +180,7 @@ if ($usuario_logueado) {
 </head>
 <body>
 
-<!-- Navbar -->
+
 <nav class="navbar">
     <div class="logo">Lunette</div>
     <ul class="nav-links nav-main">
@@ -212,7 +199,7 @@ if ($usuario_logueado) {
     </ul>
 </nav>
 
-<!-- Carrito -->
+
 <section class="main-container">
     <h1 class="cart-title">Tu Carrito de Compras</h1>
     
@@ -276,14 +263,12 @@ if ($usuario_logueado) {
 </section>
 
 <script>
-// Función para incrementar la cantidad
 function incrementQuantity(productId, shoppingCardId) {
     const input = document.getElementById(`quantity-${productId}`);
     input.value = parseInt(input.value) + 1;
     updateQuantity(productId, shoppingCardId);
 }
 
-// Función para decrementar la cantidad
 function decrementQuantity(productId, shoppingCardId) {
     const input = document.getElementById(`quantity-${productId}`);
     if (parseInt(input.value) > 1) {
@@ -292,7 +277,6 @@ function decrementQuantity(productId, shoppingCardId) {
     }
 }
 
-// Función para actualizar la cantidad en la BD
 function updateQuantity(productId, shoppingCardId) {
     const quantity = document.getElementById(`quantity-${productId}`).value;
     
@@ -309,7 +293,6 @@ function updateQuantity(productId, shoppingCardId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Actualizar los valores en la interfaz
             document.querySelectorAll('.summary-row')[0].querySelector('span:last-child').textContent = `S/ ${data.total.toFixed(2)}`;
             document.getElementById('subtotal-seleccionados').textContent = `S/ ${data.subtotal_seleccionados.toFixed(2)}`;
             document.getElementById('total-compra').textContent = `S/ ${data.subtotal_seleccionados.toFixed(2)}`;
@@ -322,7 +305,6 @@ function updateQuantity(productId, shoppingCardId) {
     });
 }
 
-// Función para alternar la selección de un item
 function toggleSelect(productId, shoppingCardId) {
     const selector = event.target;
     const isCurrentlySelected = selector.classList.contains('selected');
@@ -341,14 +323,12 @@ function toggleSelect(productId, shoppingCardId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Actualizar el estado visual del selector
             if (newState === 1) {
                 selector.classList.add('selected');
             } else {
                 selector.classList.remove('selected');
             }
             
-            // Actualizar los valores en la interfaz
             document.getElementById('subtotal-seleccionados').textContent = `S/ ${data.subtotal_seleccionados.toFixed(2)}`;
             document.getElementById('total-compra').textContent = `S/ ${data.subtotal_seleccionados.toFixed(2)}`;
         } else {
@@ -360,14 +340,12 @@ function toggleSelect(productId, shoppingCardId) {
     });
 }
 
-// Función para eliminar un item del carrito
 function removeItem(productId, shoppingCardId) {
     if (confirm('¿Estás seguro de que deseas eliminar este producto del carrito?')) {
         window.location.href = `update_cart.php?action=remove&product_id=${productId}&shopping_card_id=${shoppingCardId}`;
     }
 }
 
-// Hacer que el mensaje de confirmación desaparezca después de 5 segundos
 document.addEventListener('DOMContentLoaded', function() {
     const message = document.querySelector('.cart-message');
     if (message) {
