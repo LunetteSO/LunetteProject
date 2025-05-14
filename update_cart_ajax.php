@@ -2,21 +2,21 @@
 session_start();
 require 'config/db.php';
 
-// Habilitar el registro de errores
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Configurar encabezados para respuesta JSON
+
 header('Content-Type: application/json');
 
-// Verificar si el usuario está logueado
+
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Usuario no autenticado']);
     exit;
 }
 
-// Verificar si hay datos en la solicitud
+
 if (!isset($_POST['action']) || !isset($_POST['product_id']) || !isset($_POST['shopping_card_id'])) {
     echo json_encode(['success' => false, 'message' => 'Faltan parámetros requeridos']);
     exit;
@@ -28,7 +28,7 @@ $shopping_card_id = $_POST['shopping_card_id'];
 $action = $_POST['action'];
 
 try {
-    // Verificar que el carrito pertenece al usuario
+
     $stmt = $conn->prepare("SELECT * FROM shopping_card WHERE shopping_card_id = ? AND user_id = ?");
     $stmt->execute([$shopping_card_id, $user_id]);
     $shopping_card = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -38,7 +38,7 @@ try {
         exit;
     }
     
-    // Iniciar una transacción
+
     $conn->beginTransaction();
     
     if ($action === 'update_quantity') {
@@ -65,7 +65,7 @@ try {
         exit;
     }
     
-    // Actualizar el monto total del carrito (todos los productos)
+
     $stmt = $conn->prepare("
         SELECT SUM(p.price * sci.quantity) as total 
         FROM shopping_card_item sci 
@@ -76,11 +76,11 @@ try {
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     $total = $result['total'] ?? 0;
     
-    // Actualizar el total en la base de datos
+
     $stmt = $conn->prepare("UPDATE shopping_card SET total_amount = ? WHERE shopping_card_id = ?");
     $stmt->execute([$total, $shopping_card_id]);
     
-    // Calcular el subtotal de productos seleccionados
+
     $stmt = $conn->prepare("
         SELECT SUM(p.price * sci.quantity) as subtotal_seleccionados 
         FROM shopping_card_item sci 
@@ -91,10 +91,9 @@ try {
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     $subtotal_seleccionados = $result['subtotal_seleccionados'] ?? 0;
     
-    // Confirmar la transacción
+
     $conn->commit();
-    
-    // Retornar éxito y los valores actualizados
+
     echo json_encode([
         'success' => true, 
         'total' => floatval($total), 
@@ -102,7 +101,7 @@ try {
     ]);
     
 } catch (PDOException $e) {
-    // Si hay algún error, revertir la transacción
+
     if ($conn->inTransaction()) {
         $conn->rollBack();
     }
