@@ -2,12 +2,10 @@
 session_start();
 require 'config/db.php';
 
-// Habilitar el registro de errores
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', 'errors.log');
 
-// Verificar si el usuario está logueado
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php?redirect=cart.php');
     exit;
@@ -28,7 +26,6 @@ if (!isset($_GET['step'])) {
     exit;
 }
 
-// Obtener el carrito del usuario
 $stmt = $conn->prepare("SELECT sc.shopping_card_id, sc.total_amount FROM shopping_card sc WHERE sc.user_id = ?");
 $stmt->execute([$user_id]);
 $shopping_card = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -41,23 +38,19 @@ if (!$shopping_card) {
 
 $shopping_card_id = $shopping_card['shopping_card_id'];
 
-// Obtener los items seleccionados
 $stmt = $conn->prepare("SELECT sci.*, p.name, p.price, p.description, (SELECT pi.image_url FROM product_image pi WHERE pi.product_id = p.product_id LIMIT 1) AS image_url FROM shopping_card_item sci JOIN product p ON sci.product_id = p.product_id WHERE sci.shopping_card_id = ? AND sci.is_select = 1");
 $stmt->execute([$shopping_card_id]);
 $cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Calcular totales
 foreach ($cart_items as $item) {
     $subtotal_seleccionados += $item['price'] * $item['quantity'];
 }
 
 $total = $subtotal_seleccionados + $shipping_cost;
 
-// Obtener tipos de tarjeta
 $stmt = $conn->query("SELECT * FROM type_card");
 $type_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Obtener direcciones y tarjetas del usuario
 $stmt = $conn->prepare("SELECT * FROM address WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $user_addresses = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -66,24 +59,19 @@ $stmt = $conn->prepare("SELECT c.*, tc.name as type_card_name FROM card c JOIN t
 $stmt->execute([$user_id]);
 $user_cards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Mensaje de resultado
 $message = null;
 
-// Procesamiento del formulario para guardar en BD
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = null;
     try {
         $conn->beginTransaction();
         $saved_data = [];
         
-        // Procesar dirección
         if (isset($_POST['address_option']) && $_POST['address_option'] == 'new') {
-            // Verificar que los campos obligatorios estén presentes
             if (empty($_POST['street']) || empty($_POST['city']) || empty($_POST['postal_code']) || empty($_POST['country'])) {
                 throw new Exception("Todos los campos de dirección marcados con * son obligatorios");
             }
             
-            // Nueva dirección
             $stmt = $conn->prepare("INSERT INTO address (street_address, city, postal_code, country, specification, is_default, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $_POST['street'],
@@ -91,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['postal_code'],
                 $_POST['country'],
                 $_POST['specification'] ?? '',
-                0, // is_default = 0
+                0,
                 $user_id
             ]);
             $address_id = $conn->lastInsertId();
@@ -102,11 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'city' => $_POST['city']
             ];
         } else {
-            // Usar dirección existente si hay disponible
             if (isset($_POST['selected-address-id']) && !empty($_POST['selected-address-id'])) {
                 $address_id = $_POST['selected-address-id'];
                 
-                // Encontrar los detalles de la dirección seleccionada
                 $selected_address = null;
                 foreach ($user_addresses as $addr) {
                     if ($addr['address_id'] == $address_id) {
@@ -122,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'city' => $selected_address ? $selected_address['city'] : ''
                 ];
             } else {
-                // No hay dirección seleccionada, verificar si hay direcciones disponibles
                 if (count($user_addresses) > 0) {
                     $address_id = $user_addresses[0]['address_id'];
                     $saved_data['address'] = [
@@ -136,10 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-        
-        // Procesar tarjeta
+    
         if (isset($_POST['payment_option']) && $_POST['payment_option'] == 'new') {
-            // Verificar que los campos obligatorios estén presentes
             if (empty($_POST['card_number']) || empty($_POST['cvv']) || empty($_POST['card_name']) || 
                 empty($_POST['exp_month']) || empty($_POST['exp_year']) || empty($_POST['type_card_id'])) {
                 throw new Exception("Todos los campos de tarjeta marcados con * son obligatorios");
@@ -152,10 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $exp_year = $_POST['exp_year'];
             $type_card_id = $_POST['type_card_id'];
             $save_card = isset($_POST['save_card']) ? true : false;
-            
-            // Verificar si debemos guardar la tarjeta o solo usarla para esta compra
+
             if ($save_card) {
-                // Guardar la tarjeta en la base de datos
                 $expiration_date = "20{$exp_year}-{$exp_month}-01";
                 
                 $stmt = $conn->prepare("INSERT INTO card (number, cvv, cardholders_name, expiration_date, user_id, type_card_id) VALUES (?, ?, ?, ?, ?, ?)");
@@ -169,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
                 $card_id = $conn->lastInsertId();
                 
-                // Encontrar el nombre del tipo de tarjeta
                 $card_type_name = "";
                 foreach ($type_cards as $type) {
                     if ($type['type_card_id'] == $type_card_id) {
@@ -178,10 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             } else {
-                // No guardar la tarjeta, pero usarla para esta compra
-                $card_id = null; // Será null en la orden
+                $card_id = null;
                 
-                // Buscar el nombre del tipo de tarjeta para mostrarlo en el resumen
                 $card_type_name = "";
                 foreach ($type_cards as $type) {
                     if ($type['type_card_id'] == $type_card_id) {
@@ -191,7 +169,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            // Guardar información de la tarjeta para el resumen
             $saved_data['card'] = [
                 'id' => $card_id,
                 'type' => $save_card ? 'nueva' : 'temporal',
@@ -207,11 +184,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]
             ];
         } else {
-            // Usar tarjeta existente si hay disponible
+
             if (isset($_POST['selected-card-id']) && !empty($_POST['selected-card-id'])) {
                 $card_id = $_POST['selected-card-id'];
                 
-                // Encontrar los detalles de la tarjeta seleccionada
+
                 $selected_card = null;
                 foreach ($user_cards as $card) {
                     if ($card['card_id'] == $card_id) {
@@ -228,7 +205,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'card_type' => $selected_card ? $selected_card['type_card_name'] : ''
                 ];
             } else {
-                // No hay tarjeta seleccionada, verificar si hay tarjetas disponibles
                 if (count($user_cards) > 0) {
                     $card_id = $user_cards[0]['card_id'];
                     $saved_data['card'] = [
@@ -244,22 +220,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Guardar información en la sesión para usarla después
         $_SESSION['checkout_data'] = [
             'address_id' => $address_id,
             'card_id' => $card_id,
             'saved_data' => $saved_data
         ];
         
-        // Justo antes de las inserciones
         error_log("Address ID: " . $_SESSION['checkout_data']['address_id']);
         error_log("Card ID: " . $_SESSION['checkout_data']['card_id']);
         error_log("Total: " . $total);
         error_log("Número de productos: " . count($cart_items));
         
         $conn->commit();
-        
-        // Mensaje de éxito
+
         $message = [
             'type' => 'success',
             'text' => "¡Datos guardados con éxito! Se ha guardado la información de dirección y tarjeta."
@@ -273,8 +246,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($conn)) {
             $conn->rollBack();
         }
-        
-        // Mensaje de error
         $message = [
             'type' => 'error',
             'text' => "Error al guardar datos: " . $e->getMessage()
@@ -282,54 +253,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Comprobar si se debe crear la orden
 $redirect_to_step3 = false;
 if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
     try {
-        // Obtener datos del checkout
         $checkout_data = $_SESSION['checkout_data'];
         $address_id = $checkout_data['address_id'];
         $card_id = $checkout_data['card_id'];
         
-        // Verificar si es una tarjeta temporal (no guardada)
         $temporary_card_data = null;
         if ($card_id === null && isset($checkout_data['saved_data']['card']['temporary_data'])) {
             $temporary_card_data = $checkout_data['saved_data']['card']['temporary_data'];
         }
         
-        // Insertar la orden en la base de datos
         $stmt = $conn->prepare("INSERT INTO orders (user_id, address_id, card_id, total_amount, date) VALUES (?, ?, ?, ?, NOW())");
         $stmt->execute([$user_id, $address_id, $card_id, $total]);
         $order_id = $conn->lastInsertId();
         $_SESSION['order_id'] = $order_id;
         
-        // Si hay datos temporales de tarjeta, podríamos guardarlos en otra tabla o simplemente
-        // usarlos para procesar el pago en este punto
         if ($temporary_card_data) {
-            // Aquí se podrían usar los datos temporales para procesar el pago
-            // pero no se guarda la tarjeta en la base de datos
             error_log("Usando tarjeta temporal (no guardada en BD): " . json_encode($temporary_card_data));
         }
-        
-        // Mover los items del carrito a la orden completada
+
         foreach ($cart_items as $item) {
             $stmt = $conn->prepare("INSERT INTO order_items (orders_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
             $stmt->execute([$order_id, $item['product_id'], $item['quantity'], $item['price']]);
             
-            // Eliminar el ítem del carrito
             $stmt = $conn->prepare("DELETE FROM shopping_card_item WHERE shopping_card_item_id = ?");
             $stmt->execute([$item['shopping_card_item_id']]);
         }
-        
-        // Almacenar el ID de la orden en la sesión
+
         $_SESSION['order_id'] = $order_id;
         
-        // En lugar de redireccionar con header, usaremos JavaScript
         $redirect_to_step3 = true;
         
     } catch (PDOException $e) {
         error_log("ERROR EN INSERCIÓN: " . $e->getMessage() . " - Código: " . $e->getCode());
-        // Almacenar el error en la sesión
         $_SESSION['checkout_error'] = $e->getMessage();
     }
 }
@@ -343,7 +301,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* Estilos para la pasarela de pago */
         .checkout-container {
             max-width: 1000px;
             margin: 0 auto;
@@ -355,7 +312,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
         .AdressSection{
         padding: 2em 1em;
         }
-        /* Pasos de checkout */
         .checkout-steps {
             display: flex;
             justify-content: space-between;
@@ -404,7 +360,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             font-weight: 600;
         }
         
-        /* Formularios */
         .form-section {
             margin-bottom: 2rem;
         }
@@ -521,7 +476,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             background: var(--color5);
         }
         
-        /* Mensajes */
         .alert {
             padding: 15px;
             margin-bottom: 20px;
@@ -540,13 +494,11 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             border: 1px solid #f5c6cb;
         }
         
-        /* Expiration inputs */
         .expiration-inputs {
             display: flex;
             align-items: center;
         }
         
-        /* Estilos para validación */
         .highlight-error {
             border-color: #dc3545 !important;
             box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
@@ -613,7 +565,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             color: var(--color5);
         }
         
-        /* Confirmación */
         .confirmation {
             text-align: center;
             padding: 2rem;
@@ -651,7 +602,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             color: var(--color5);
         }
         
-        /* Estilos para el resumen de compra */
         .order-summary {
             background-color: #fff;
             border-radius: 1rem;
@@ -713,7 +663,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
 </head>
 <body>
 
-<!-- Navbar -->
 <nav class="navbar">
     <div class="logo">Lunette</div>
     <ul class="nav-links nav-main">
@@ -734,7 +683,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
 
 <section class="main-container">
     <div class="checkout-container">
-        <!-- Pasos del checkout -->
         <div class="checkout-steps">
             <div>
                 <div class="step <?= $current_step >= 1 ? 'active' : '' ?> <?= $current_step > 1 ? 'completed' : '' ?>">1</div>
@@ -750,7 +698,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             </div>
         </div>
         
-        <!-- Mensajes -->
         <?php if ($message): ?>
             <div class="alert alert-<?= $message['type'] ?>">
                 <?= $message['text'] ?>
@@ -758,11 +705,9 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
         <?php endif; ?>
         
         <?php if ($current_step == 1): ?>
-            <!-- Paso 1: Información de Pago y Dirección -->
             <h2>Información de Pago y Envío</h2>
             
             <form action="checkout.php?step=1" method="POST" id="checkoutForm">
-                <!-- Formulario para la dirección de envío -->
                 <div class="form-section">
                     <h3>Dirección de Envío</h3>
                     
@@ -828,7 +773,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
                     <input type="hidden" id="selected-address-id" name="selected-address-id" value="<?= (count($user_addresses) > 0) ? $user_addresses[0]['address_id'] : '0' ?>">
                 </div>
                 
-                <!-- Formulario para la información de pago -->
                 <div class="form-section">
                     <h3>Información de Pago</h3>
                     
@@ -911,8 +855,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
                                 <input type="text" id="cvv" name="cvv" class="form-control" placeholder="123">
                             </div>
                         </div>
-                       </div> 
-                        <!-- Checkbox para guardar la tarjeta -->
+                       </div>
                         <div class="form-group save-card-option">
                             <label class="checkbox-container">
                                 <input type="checkbox" id="save_card" name="save_card" checked>
@@ -932,74 +875,56 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             </form>
 
         <?php elseif ($current_step == 2): ?>
-            <!-- Paso 2: Resumen de Compra -->
             <?php
-            // Comprobar si se debe crear la orden
             $redirect_to_step3 = false;
             if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
                 try {
-                    // Obtener datos del checkout
                     $checkout_data = $_SESSION['checkout_data'];
                     $address_id = $checkout_data['address_id'];
                     $card_id = $checkout_data['card_id'];
                     
-                    // Verificar si es una tarjeta temporal (no guardada)
                     $temporary_card_data = null;
                     if ($card_id === null && isset($checkout_data['saved_data']['card']['temporary_data'])) {
                         $temporary_card_data = $checkout_data['saved_data']['card']['temporary_data'];
                     }
                     
-                    // Insertar la orden en la base de datos
                     $stmt = $conn->prepare("INSERT INTO orders (user_id, address_id, card_id, total_amount, date) VALUES (?, ?, ?, ?, NOW())");
                     $stmt->execute([$user_id, $address_id, $card_id, $total]);
                     $order_id = $conn->lastInsertId();
                     $_SESSION['order_id'] = $order_id;
                     
-                    // Si hay datos temporales de tarjeta, podríamos guardarlos en otra tabla o simplemente
-                    // usarlos para procesar el pago en este punto
                     if ($temporary_card_data) {
-                        // Aquí se podrían usar los datos temporales para procesar el pago
-                        // pero no se guarda la tarjeta en la base de datos
                         error_log("Usando tarjeta temporal (no guardada en BD): " . json_encode($temporary_card_data));
                     }
                     
-                    // Mover los items del carrito a la orden completada
                     foreach ($cart_items as $item) {
                         $stmt = $conn->prepare("INSERT INTO order_items (orders_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
                         $stmt->execute([$order_id, $item['product_id'], $item['quantity'], $item['price']]);
                         
-                        // Eliminar el ítem del carrito
                         $stmt = $conn->prepare("DELETE FROM shopping_card_item WHERE shopping_card_item_id = ?");
                         $stmt->execute([$item['shopping_card_item_id']]);
                     }
                     
-                    // Almacenar el ID de la orden en la sesión
                     $_SESSION['order_id'] = $order_id;
                     
-                    // En lugar de redireccionar con header, usaremos JavaScript
                     $redirect_to_step3 = true;
                     
                 } catch (PDOException $e) {
                     error_log("ERROR EN INSERCIÓN: " . $e->getMessage() . " - Código: " . $e->getCode());
-                    // Almacenar el error en la sesión
                     $_SESSION['checkout_error'] = $e->getMessage();
                 }
             }
             
-            // Si debemos redireccionar, agregamos el script de JavaScript
             if ($redirect_to_step3): ?>
                 <script>
                     window.location.href = 'checkout.php?step=3';
                 </script>
             <?php
-                // No hay necesidad de exit() aquí porque el JavaScript se encargará de la redirección
             endif;
-            
-            // Recuperar datos del checkout
+
             $checkout_data = $_SESSION['checkout_data'];
             $saved_data = $checkout_data['saved_data'];
-            
-            // Mostrar error si existe
+
             if (isset($_SESSION['checkout_error'])) {
                 echo '<div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin: 15px 0; border: 1px solid #f5c6cb; border-radius: 5px;">';
                 echo '<strong>ERROR AL CREAR LA ORDEN:</strong><br>';
@@ -1007,8 +932,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
                 echo '</div>';
                 unset($_SESSION['checkout_error']);
             }
-            
-            // Obtener detalles de la dirección y tarjeta
+
             $address_id = $checkout_data['address_id'];
             $selected_address = null;
             foreach ($user_addresses as $addr) {
@@ -1102,9 +1026,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
             </div>
 
         <?php elseif ($current_step == 3): ?>
-            <!-- Paso 3: Confirmación -->
             <?php
-            // Obtener detalles de la orden
             $order_id = isset($_SESSION['order_id']) ? $_SESSION['order_id'] : null;
             $order = null;
             
@@ -1147,33 +1069,22 @@ if (isset($_GET['action']) && $_GET['action'] == 'create_order') {
 </section>
 
 <script>
-// Función para manejar la selección de dirección
 function selectAddress(element, addressId) {
-    // Eliminar la selección previa
     const items = document.querySelectorAll('.address-item');
     items.forEach(item => item.classList.remove('selected'));
     
-    // Marcar como seleccionado
     element.classList.add('selected');
-    
-    // Actualizar el valor del input escondido
+ 
     document.getElementById('selected-address-id').value = addressId;
 }
 
-// Función para manejar la selección de tarjeta
 function selectCard(element, cardId) {
-    // Eliminar la selección previa
     const items = document.querySelectorAll('.card-item');
     items.forEach(item => item.classList.remove('selected'));
-    
-    // Marcar como seleccionado
     element.classList.add('selected');
-    
-    // Actualizar el valor del input escondido
     document.getElementById('selected-card-id').value = cardId;
 }
 
-// Función para mostrar/ocultar formulario de dirección
 function toggleAddressForm(showNew) {
     const savedAddresses = document.getElementById('saved-addresses');
     const newAddressForm = document.getElementById('new-address-form');
@@ -1187,7 +1098,6 @@ function toggleAddressForm(showNew) {
     }
 }
 
-// Función para mostrar/ocultar formulario de tarjeta
 function toggleCardForm(showNew) {
     const savedCards = document.getElementById('saved-cards');
     const newCardForm = document.getElementById('new-card-form');
@@ -1201,7 +1111,6 @@ function toggleCardForm(showNew) {
     }
 }
 
-// Inicializar la primera dirección y tarjeta como seleccionadas
 document.addEventListener('DOMContentLoaded', function() {
     const firstAddress = document.querySelector('.address-item');
     if (firstAddress) {
@@ -1214,33 +1123,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Función para validar el formulario antes de enviar
 document.addEventListener('DOMContentLoaded', function() {
     const checkoutForm = document.getElementById('checkoutForm');
     if (checkoutForm) {
         checkoutForm.addEventListener('submit', function(e) {
-            // Evitar envío automático
             e.preventDefault();
-            
-            // Verificar si el formulario es válido
             if (validateForm()) {
-                // Si es válido, enviar el formulario
                 this.submit();
             }
         });
     }
 });
 
-// Función para validar todos los campos
 function validateForm() {
     let isValid = true;
     let errorMessage = '';
-    
-    // Determinar si estamos usando dirección nueva o existente
     const addressOption = document.querySelector('input[name="address_option"]:checked').value;
     
     if (addressOption === 'new') {
-        // Validar nueva dirección
         const street = document.getElementById('street').value.trim();
         const city = document.getElementById('city').value.trim();
         const country = document.getElementById('country').value.trim();
@@ -1249,30 +1149,24 @@ function validateForm() {
         if (!street || !city || !country || !postalCode) {
             isValid = false;
             errorMessage += "Por favor completa todos los campos obligatorios de dirección.\n";
-            
-            // Resaltar campos vacíos
             highlightEmptyField('street');
             highlightEmptyField('city');
             highlightEmptyField('country');
             highlightEmptyField('postal_code');
         }
     } else {
-        // Validar dirección existente seleccionada
         const selectedAddressId = document.getElementById('selected-address-id').value;
         if (!selectedAddressId || selectedAddressId === '0') {
             isValid = false;
             errorMessage += "Por favor selecciona una dirección de envío.\n";
             
-            // Resaltar sección
             document.getElementById('saved-addresses').classList.add('highlight-section');
         }
     }
-    
-    // Determinar si estamos usando tarjeta nueva o existente
+
     const paymentOption = document.querySelector('input[name="payment_option"]:checked').value;
     
     if (paymentOption === 'new') {
-        // Validar nueva tarjeta
         const cardName = document.getElementById('card_name').value.trim();
         const cardNumber = document.getElementById('card_number').value.trim();
         const cvv = document.getElementById('cvv').value.trim();
@@ -1284,7 +1178,6 @@ function validateForm() {
             isValid = false;
             errorMessage += "Por favor completa todos los campos obligatorios de tarjeta.\n";
             
-            // Resaltar campos vacíos
             highlightEmptyField('card_name');
             highlightEmptyField('card_number');
             highlightEmptyField('cvv');
@@ -1296,32 +1189,27 @@ function validateForm() {
             highlightEmptyField('type_card_id');
         }
         
-        // Validar formato de número de tarjeta (solo números, 16 dígitos)
         if (cardNumber && (!/^\d+$/.test(cardNumber.replace(/\s/g, '')) || cardNumber.replace(/\s/g, '').length !== 16)) {
             isValid = false;
             errorMessage += "El número de tarjeta debe tener 16 dígitos numéricos.\n";
             document.getElementById('card_number').classList.add('highlight-error');
         }
         
-        // Validar CVV (3-4 dígitos)
         if (cvv && (!/^\d+$/.test(cvv) || cvv.length < 3 || cvv.length > 4)) {
             isValid = false;
             errorMessage += "El CVV debe tener 3 o 4 dígitos numéricos.\n";
             document.getElementById('cvv').classList.add('highlight-error');
         }
     } else {
-        // Validar tarjeta existente seleccionada
         const selectedCardId = document.getElementById('selected-card-id').value;
         if (!selectedCardId || selectedCardId === '0') {
             isValid = false;
             errorMessage += "Por favor selecciona una tarjeta de pago.\n";
-            
-            // Resaltar sección
+
             document.getElementById('saved-cards').classList.add('highlight-section');
         }
     }
-    
-    // Mostrar mensaje de error si hay problemas
+
     if (!isValid) {
         showFormError(errorMessage);
     }
@@ -1329,7 +1217,7 @@ function validateForm() {
     return isValid;
 }
 
-// Resaltar campo vacío
+
 function highlightEmptyField(fieldId) {
     const field = document.getElementById(fieldId);
     if (field) {
@@ -1341,9 +1229,8 @@ function highlightEmptyField(fieldId) {
     }
 }
 
-// Mostrar mensaje de error
+
 function showFormError(message) {
-    // Crear o actualizar el contenedor de mensajes de error
     let errorContainer = document.getElementById('form-error-container');
     
     if (!errorContainer) {
@@ -1351,19 +1238,15 @@ function showFormError(message) {
         errorContainer.id = 'form-error-container';
         errorContainer.className = 'alert alert-error';
         
-        // Insertar al inicio del formulario
         const form = document.getElementById('checkoutForm');
         form.insertBefore(errorContainer, form.firstChild);
     }
     
-    // Actualizar el mensaje
     errorContainer.innerHTML = '<strong>Error:</strong> ' + message.replace(/\n/g, '<br>');
     
-    // Desplazarse hacia el mensaje de error
     errorContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Quitar resaltado de error al enfocar el campo
 document.addEventListener('DOMContentLoaded', function() {
     const formInputs = document.querySelectorAll('.form-control');
     formInputs.forEach(input => {
@@ -1372,7 +1255,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Quitar resaltado de sección al hacer clic en ella
     const addressList = document.getElementById('saved-addresses');
     if (addressList) {
         addressList.addEventListener('click', function() {
@@ -1395,8 +1277,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('Formulario enviado');
-            // No prevenir el comportamiento por defecto
-            // Podríamos agregar aquí: e.preventDefault(); para detener el envío normal
         });
     } else {
         console.error('Formulario no encontrado');
