@@ -2,7 +2,7 @@
 session_start();
 require 'config/db.php';
 
-// Obtener detalles del producto por ID
+
 if (isset($_GET['id'])) {
     $product_id = $_GET['id'];
     try {
@@ -28,7 +28,7 @@ if (isset($_GET['id'])) {
 </head>
 <body>
 
-<!-- Navbar -->
+
 <nav class="navbar">
     <div class="logo">Lunette</div>
     <ul class="nav-links nav-main">
@@ -48,7 +48,7 @@ if (isset($_GET['id'])) {
     </ul>
 </nav>
 
-<!-- Product Details -->
+
 <section class="main-container">
     <div class="product-details">
         <?php if ($product): ?>
@@ -60,11 +60,9 @@ if (isset($_GET['id'])) {
                 <p><?= htmlspecialchars($product['description']) ?></p>
                 <p class="product-price">S/ <?= number_format($product['price'], 2) ?></p>
                 
-                <!-- Formulario para seleccionar cantidad y añadir al carrito -->
                 <form method="POST" action="add_to_cart.php">
                     <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
                     
-                    <!-- Selector de cantidad -->
                     <div class="quantity-control">
                         <button type="button" class="quantity-btn" onclick="decrementQuantity()">-</button>
                         <input type="number" name="quantity" id="quantity" value="1" min="1" class="quantity-input" onchange="updateQuantity()">
@@ -80,7 +78,6 @@ if (isset($_GET['id'])) {
 </section>
 
 <script>
-    // Funciones para cambiar la cantidad del producto
     function incrementQuantity() {
         var quantityInput = document.getElementById("quantity");
         quantityInput.value = parseInt(quantityInput.value) + 1;
@@ -93,7 +90,6 @@ if (isset($_GET['id'])) {
         }
     }
 
-    // Actualizar la cantidad del producto
     function updateQuantity() {
         var quantityInput = document.getElementById("quantity");
         if (parseInt(quantityInput.value) < 1) {
