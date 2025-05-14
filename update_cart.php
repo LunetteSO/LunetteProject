@@ -89,7 +89,7 @@ try {
     ];
 }
 
-// Redirigir de vuelta al carrito
+
 header('Location: cart.php');
 exit;
 ?> 
