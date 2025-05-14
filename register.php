@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
     try {
-        // Verificar si el usuario ya existe
+
         $stmt = $conn->prepare("SELECT * FROM user WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch(PDO::FETCH_ASSOC)) {
